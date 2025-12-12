@@ -1,0 +1,27 @@
+# Ablation: VAE training strategy
+# Test: Should we finetune the VAE encoder for JEPA?
+
+# @package _global_
+
+# Option 1: Frozen VAE (baseline)
+# algorithm:
+#   jepa:
+#     train_vae_encoder: false
+#     train_vae_decoder: false
+
+# Option 2: Train encoder only (recommended)
+# algorithm:
+#   jepa:
+#     train_vae_encoder: true
+#     train_vae_decoder: false
+#     vae_lr: 1e-5
+
+# Option 3: Train both (expensive)
+# algorithm:
+#   jepa:
+#     train_vae_encoder: true
+#     train_vae_decoder: true
+#     vae_lr: 1e-5
+
+# Run with: python main.py ... algorithm.jepa.train_vae_encoder=false
+

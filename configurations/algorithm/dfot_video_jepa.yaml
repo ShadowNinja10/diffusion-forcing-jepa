@@ -1,0 +1,33 @@
+# DFoT with JEPA-style VAE training
+# This config extends dfot_video.yaml with JEPA-specific settings
+
+defaults:
+  - dfot_video
+
+# JEPA-specific configuration
+jepa:
+  # Loss weight for JEPA prediction loss (combined with DFoT loss)
+  loss_weight: 1.0
+
+  # Learning rates
+  lr: 1e-4  # for action encoder and ViT predictor
+  vae_lr: 1e-5  # for VAE (if trainable)
+
+  # Whether to train VAE encoder/decoder
+  train_vae_encoder: true  # Train encoder to learn predictable representations
+  train_vae_decoder: false  # Keep decoder frozen to preserve reconstruction
+
+  # Use mode() instead of sample() for JEPA targets (deterministic, stable)
+  use_mode_for_targets: true
+
+  # Action encoder config
+  action_embed_dim: 256
+  action_hidden_dim: 256
+
+  # ViT Predictor config
+  predictor_hidden_dim: 512
+  predictor_depth: 4
+  predictor_heads: 8
+  predictor_dim_head: 64
+  predictor_mlp_ratio: 4.0
+  predictor_dropout: 0.1

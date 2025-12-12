@@ -1,0 +1,100 @@
+# @package _global_
+# Minecraft video generation with JEPA-style VAE training
+# Trains DFoT jointly with a predictive VAE
+#
+# USAGE:
+# ------
+# 1. Finetune from pre-trained DFoT + VAE (recommended):
+#    python main.py \
+#      +name=jepa_finetune \
+#      experiment=video_generation \
+#      dataset=minecraft \
+#      algorithm=dfot_video_jepa \
+#      load=pretrained:MCRAFT_L.ckpt
+#
+# 2. Train from scratch:
+#    python main.py \
+#      +name=jepa_scratch \
+#      experiment=video_generation \
+#      dataset=minecraft \
+#      algorithm=dfot_video_jepa
+#
+# 3. Test pipeline with mock data first:
+#    python test_jepa_full_pipeline.py
+#
+# The VAE is loaded from algorithm.vae.pretrained_path automatically.
+# JEPA components (predictor, action_encoder) are randomly initialized
+# when loading a pre-trained DFoT checkpoint (this is expected).
+
+dataset:
+  latent:
+    enable: True
+    type: online  # JEPA requires online VAE processing
+  subdataset_size: 1920000
+  num_eval_videos: 768
+
+algorithm:
+  lr_scheduler:
+    name: constant_with_warmup
+    num_warmup_steps: 10000
+    num_training_steps: 200000
+  weight_decay: 0.001
+  compile: false  # Disable compile for JEPA (due to dynamic VAE training)
+  
+  diffusion:
+    loss_weighting:
+      strategy: sigmoid
+      sigmoid_bias: -1.0
+    training_schedule:
+      name: cosine
+      shift: 0.125
+    beta_schedule: cosine_simple_diffusion
+    schedule_fn_kwargs:
+      shifted: 0.125
+  
+  uniform_future:
+    enabled: true
+  
+  backbone:
+    patch_size: 2
+    external_cond_dropout: 0.1
+  
+  vae:
+    pretrained_path: pretrained:ImageVAE_MCRAFT.ckpt
+    batch_size: 2
+  
+  # JEPA-specific settings
+  jepa:
+    loss_weight: 1.0
+    lr: 1e-4
+    vae_lr: 1e-5
+    train_vae_encoder: true
+    train_vae_decoder: false
+    use_mode_for_targets: true
+    # Action encoder
+    action_embed_dim: 256
+    action_hidden_dim: 256
+    # ViT Predictor (sized for Minecraft latents)
+    predictor_hidden_dim: 512
+    predictor_depth: 4
+    predictor_heads: 8
+    predictor_dim_head: 64
+    predictor_mlp_ratio: 4.0
+    predictor_dropout: 0.1
+  
+  logging:
+    max_num_videos: 32
+
+experiment:
+  training:
+    lr: 1e-4
+    batch_size: 8
+    max_epochs: 10
+  validation:
+    batch_size: 16
+    data:
+      num_workers: 0
+  test:
+    batch_size: 16
+    data:
+      num_workers: 0

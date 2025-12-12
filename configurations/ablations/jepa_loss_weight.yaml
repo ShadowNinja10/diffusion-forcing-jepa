@@ -1,0 +1,11 @@
+# Ablation: JEPA loss weight
+# Test: How does the balance between DFoT and JEPA losses affect results?
+# Values: 0.1, 0.5, 1.0, 2.0, 5.0
+
+# Run with: python main.py ... algorithm.jepa.loss_weight=0.5
+
+# @package _global_
+
+# Baseline (loss_weight=1.0 is default in dfot_video_jepa.yaml)
+# Override with command line: algorithm.jepa.loss_weight=X
+

@@ -1,0 +1,16 @@
+name: Auto approve
+
+on:
+  pull_request_target:
+    types: [labeled]
+
+jobs:
+  auto-approve:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    if: contains(github.event.pull_request.labels.*.name, 'auto-approve') && (github.actor == 'kwsong0113' || github.actor == 'buoyancy99')
+    steps:
+      - uses: hmarr/auto-approve-action@v4
+        with:
+          github-token: ${{ secrets.KIWHAN_GITHUB_TOKEN }}

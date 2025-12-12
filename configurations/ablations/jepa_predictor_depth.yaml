@@ -1,0 +1,22 @@
+# Ablation: Predictor depth
+# Test: How does ViT predictor depth affect prediction quality?
+
+# @package _global_
+
+# Small predictor (depth=2)
+# algorithm:
+#   jepa:
+#     predictor_depth: 2
+
+# Medium predictor (depth=4) - default
+# algorithm:
+#   jepa:
+#     predictor_depth: 4
+
+# Large predictor (depth=6)
+# algorithm:
+#   jepa:
+#     predictor_depth: 6
+
+# Run with: python main.py ... algorithm.jepa.predictor_depth=6
+
