@@ -142,10 +142,14 @@ class BaseLightningExperiment(BaseExperiment):
             )
         callbacks += self._build_common_callbacks()
 
+        # Allow overriding accelerator/devices via config (e.g. force CPU on MPS Macs)
+        accelerator = getattr(self.cfg.training, "accelerator", "auto")
+        devices = getattr(self.cfg.training, "devices", "auto")
+
         trainer = pl.Trainer(
-            accelerator="auto",
+            accelerator=accelerator,
             logger=self.logger,
-            devices="auto",
+            devices=devices,
             num_nodes=self.cfg.num_nodes,
             strategy=(
                 DDPStrategy(find_unused_parameters=self.cfg.find_unused_parameters)
@@ -174,10 +178,12 @@ class BaseLightningExperiment(BaseExperiment):
         # if self.debug:
         #     self.logger.watch(self.algo, log="all")
 
+        weights_only = getattr(self.cfg, "weights_only", False)
         trainer.fit(
             self.algo,
             datamodule=self.data_module,
             ckpt_path=self.ckpt_path,
+            weights_only=weights_only,
         )
 
     def validation(self) -> None:
@@ -191,10 +197,13 @@ class BaseLightningExperiment(BaseExperiment):
 
         callbacks = [] + self._build_common_callbacks()
 
+        accelerator = getattr(self.cfg.validation, "accelerator", "auto")
+        devices = getattr(self.cfg.validation, "devices", "auto")
+
         trainer = pl.Trainer(
-            accelerator="auto",
+            accelerator=accelerator,
             logger=self.logger,
-            devices="auto",
+            devices=devices,
             num_nodes=self.cfg.num_nodes,
             strategy=(
                 DDPStrategy(find_unused_parameters=self.cfg.find_unused_parameters)
@@ -211,10 +220,12 @@ class BaseLightningExperiment(BaseExperiment):
         # if self.debug:
         #     self.logger.watch(self.algo, log="all")
 
+        weights_only = getattr(self.cfg, "weights_only", False)
         trainer.validate(
             self.algo,
             datamodule=self.data_module,
             ckpt_path=self.ckpt_path,
+            weights_only=weights_only,
         )
 
     def test(self) -> None:
@@ -228,10 +239,13 @@ class BaseLightningExperiment(BaseExperiment):
 
         callbacks = [] + self._build_common_callbacks()
 
+        accelerator = getattr(self.cfg.test, "accelerator", "auto")
+        devices = getattr(self.cfg.test, "devices", "auto")
+
         trainer = pl.Trainer(
-            accelerator="auto",
+            accelerator=accelerator,
             logger=self.logger,
-            devices="auto",
+            devices=devices,
             num_nodes=self.cfg.num_nodes,
             strategy=(
                 DDPStrategy(find_unused_parameters=self.cfg.find_unused_parameters)
@@ -247,8 +261,10 @@ class BaseLightningExperiment(BaseExperiment):
 
         # Only load the checkpoint if only testing. Otherwise, it will have been loaded
         # and further trained during train.
+        weights_only = getattr(self.cfg, "weights_only", False)
         trainer.test(
             self.algo,
             datamodule=self.data_module,
             ckpt_path=self.ckpt_path,
+            weights_only=weights_only,
         )

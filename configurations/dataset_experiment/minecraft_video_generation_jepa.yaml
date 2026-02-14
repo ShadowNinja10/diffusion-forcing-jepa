@@ -1,30 +1,26 @@
 # @package _global_
-# Minecraft video generation with JEPA-style VAE training
-# Trains DFoT jointly with a predictive VAE
+# Minecraft video generation with dual-encoder JEPA (BYOL-style)
 #
 # USAGE:
 # ------
-# 1. Finetune from pre-trained DFoT + VAE (recommended):
-#    python main.py \
-#      +name=jepa_finetune \
-#      experiment=video_generation \
-#      dataset=minecraft \
-#      algorithm=dfot_video_jepa \
-#      load=pretrained:MCRAFT_L.ckpt
+# Finetune from pre-trained DFoT (recommended):
+#   python main.py \
+#     +name=jepa_dual_encoder \
+#     experiment=video_generation \
+#     dataset=minecraft \
+#     algorithm=dfot_video_jepa \
+#     dataset_experiment=minecraft_video_generation_jepa \
+#     load=pretrained:DFoT_MCRAFT.ckpt \
+#     algorithm.checkpoint.strict=false \
+#     @DiT/B @diffusion/continuous \
+#     experiment.training.batch_size=1 \
+#     experiment.find_unused_parameters=true \
+#     dataset.max_frames=8 dataset.context_length=4
 #
-# 2. Train from scratch:
-#    python main.py \
-#      +name=jepa_scratch \
-#      experiment=video_generation \
-#      dataset=minecraft \
-#      algorithm=dfot_video_jepa
-#
-# 3. Test pipeline with mock data first:
-#    python test_jepa_full_pipeline.py
-#
-# The VAE is loaded from algorithm.vae.pretrained_path automatically.
-# JEPA components (predictor, action_encoder) are randomly initialized
-# when loading a pre-trained DFoT checkpoint (this is expected).
+# The target VAE is loaded from algorithm.vae.pretrained_path and frozen.
+# The online encoder is a trainable copy of the target encoder.
+# JEPA components (predictor, action_encoder, online_encoder) are randomly
+# initialised when loading a pre-trained DFoT checkpoint (this is expected).
 
 dataset:
   latent:
@@ -39,8 +35,8 @@ algorithm:
     num_warmup_steps: 10000
     num_training_steps: 200000
   weight_decay: 0.001
-  compile: false  # Disable compile for JEPA (due to dynamic VAE training)
-  
+  compile: false
+
   diffusion:
     loss_weighting:
       strategy: sigmoid
@@ -51,45 +47,51 @@ algorithm:
     beta_schedule: cosine_simple_diffusion
     schedule_fn_kwargs:
       shifted: 0.125
-  
+
   uniform_future:
     enabled: true
-  
+
   backbone:
     patch_size: 2
     external_cond_dropout: 0.1
-  
+
   vae:
     pretrained_path: pretrained:ImageVAE_MCRAFT.ckpt
     batch_size: 2
-  
-  # JEPA-specific settings
+
+  # JEPA settings (dual-encoder, BYOL-style)
   jepa:
     loss_weight: 1.0
+    training_mode: teacher_forcing
     lr: 1e-4
-    vae_lr: 1e-5
-    train_vae_encoder: true
-    train_vae_decoder: false
-    use_mode_for_targets: true
+    encoder_lr: 1e-5
+    ema_decay: 0.999
+    ema_update_every: 100
     # Action encoder
     action_embed_dim: 256
     action_hidden_dim: 256
-    # ViT Predictor (sized for Minecraft latents)
+    # ViT Predictor
     predictor_hidden_dim: 512
     predictor_depth: 4
     predictor_heads: 8
     predictor_dim_head: 64
     predictor_mlp_ratio: 4.0
     predictor_dropout: 0.1
-  
+    # Decoder reconstruction loss (collapse diagnostic)
+    decoder_loss_weight: 0.0
+    decoder_mse_weight: 1.0
+    decoder_lpips_weight: 1.0
+    decoder_lr: 1e-4
+    decoder_vis_every: 2      # log reconstruction frames every N training steps
+
   logging:
     max_num_videos: 32
 
 experiment:
   training:
     lr: 1e-4
-    batch_size: 8
-    max_epochs: 10
+    batch_size: 1
+    max_epochs: 15
   validation:
     batch_size: 16
     data:

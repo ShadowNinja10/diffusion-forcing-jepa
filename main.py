@@ -7,12 +7,59 @@ and the `LICENSE` file to credit the author.
 Main file for the project. This will create and run new experiments and load checkpoints from wandb. 
 Borrowed the wandb code from David Charatan and wandb.ai.
 """
+import numpy as _np
+if not hasattr(_np, "float_"):
+    _np.float_ = _np.float64  # type: ignore[attr-defined]
 
 import os
 import sys
 import subprocess
 import time
 from pathlib import Path
+
+def _torch_26_weights_only_compat() -> None:
+    """
+    PyTorch 2.6 changed torch.load default to weights_only=True.
+    Some Lightning checkpoints include OmegaConf metadata objects that need to be
+    allowlisted for safe weights-only loading.
+
+    This keeps the default safer behavior (weights_only=True) while allowing
+    trusted checkpoints produced by this codebase to load.
+    """
+
+    try:
+        import torch
+    except Exception:
+        return
+
+    safe_types = []
+    try:
+        from omegaconf.base import ContainerMetadata
+
+        safe_types.append(ContainerMetadata)
+    except Exception:
+        pass
+
+    try:
+        from omegaconf import DictConfig, ListConfig
+
+        safe_types.extend([DictConfig, ListConfig])
+    except Exception:
+        pass
+
+    if not safe_types:
+        return
+
+    try:
+        # Available in newer PyTorch (2.6+). No-op if not present.
+        add_safe_globals = getattr(torch.serialization, "add_safe_globals", None)
+        if add_safe_globals is not None:
+            add_safe_globals(safe_types)
+    except Exception:
+        # If anything goes wrong, don't block execution; loading may still work
+        # on older PyTorch where weights_only defaults to False.
+        return
+
 
 import hydra
 from omegaconf import DictConfig, OmegaConf
@@ -272,6 +319,7 @@ def run(cfg: DictConfig):
 
 
 if __name__ == "__main__":
+    _torch_26_weights_only_compat()
     sys.argv = unwrap_shortcuts(
         sys.argv, config_path="configurations", config_name="config"
     )

@@ -1,5 +1,9 @@
-# DFoT with JEPA-style VAE training
-# This config extends dfot_video.yaml with JEPA-specific settings
+# DFoT with dual-encoder JEPA (BYOL-style)
+#
+# - Target VAE encoder is frozen; provides stable latents for DFoT.
+# - Online VAE encoder is trainable; learns predictive representations.
+# - ViT predictor operates on clean latents from the online encoder.
+# - EMA periodically syncs online -> target encoder.
 
 defaults:
   - dfot_video
@@ -8,17 +12,16 @@ defaults:
 jepa:
   # Loss weight for JEPA prediction loss (combined with DFoT loss)
   loss_weight: 1.0
+  # Training mode: teacher_forcing or autoregressive
+  training_mode: teacher_forcing
 
   # Learning rates
-  lr: 1e-4  # for action encoder and ViT predictor
-  vae_lr: 1e-5  # for VAE (if trainable)
+  lr: 1e-4       # for predictor + action encoder
+  encoder_lr: 1e-5  # for online encoder (lower for stability)
 
-  # Whether to train VAE encoder/decoder
-  train_vae_encoder: true  # Train encoder to learn predictable representations
-  train_vae_decoder: false  # Keep decoder frozen to preserve reconstruction
-
-  # Use mode() instead of sample() for JEPA targets (deterministic, stable)
-  use_mode_for_targets: true
+  # EMA update schedule
+  ema_decay: 0.999
+  ema_update_every: 100  # steps
 
   # Action encoder config
   action_embed_dim: 256
@@ -31,3 +34,11 @@ jepa:
   predictor_dim_head: 64
   predictor_mlp_ratio: 4.0
   predictor_dropout: 0.1
+
+  # Decoder reconstruction loss (collapse diagnostic)
+  # Set decoder_loss_weight > 0 to enable
+  decoder_loss_weight: 0.0     # overall weight in total_loss
+  decoder_mse_weight: 1.0      # weight on pixel MSE term
+  decoder_lpips_weight: 1.0    # weight on LPIPS perceptual term
+  decoder_lr: 1e-4             # lr for online_decoder + online_post_quant_conv
+  decoder_vis_every: 2        # log reconstruction frames every N training steps

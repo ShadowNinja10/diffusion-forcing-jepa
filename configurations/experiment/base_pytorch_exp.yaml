@@ -53,6 +53,9 @@ test:
 
 find_unused_parameters: False
 reload_dataloaders_every_n_epochs: 0
+# When loading checkpoints, use weights_only=false so PyTorch 2.6+ can load
+# checkpoints that contain OmegaConf/typing objects. Set true only for untrusted checkpoints.
+weights_only: false
 ema:
   enable: False
   decay: 0.9999

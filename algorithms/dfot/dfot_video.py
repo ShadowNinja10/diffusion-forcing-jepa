@@ -1440,7 +1440,11 @@ class DFoTVideo(BasePytorchAlgo):
         # 3. (Optionally) reset the optimizer states - for fresh finetuning or resuming training
         if self.cfg.checkpoint.reset_optimizer:
             checkpoint["optimizer_states"] = []
-
+            checkpoint["lr_schedulers"] = []
+            checkpoint.pop("loops", None)      # not checkpoint["loops"] = {}
+            checkpoint.pop("callbacks", None)  # optional, safer for resumed callback states
+            checkpoint["epoch"] = 0
+            checkpoint["global_step"] = 0
         # 4. Rewrite the state_dict of the checkpoint, only leaving meaningful keys
         # defined by self._should_include_in_checkpoint
         # also print out warnings when the checkpoint does not exactly match the expected format

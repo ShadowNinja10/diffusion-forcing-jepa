@@ -16,6 +16,7 @@ class VideoLatentPreprocessingExperiment(BaseLightningExperiment):
     )
 
     compatible_datasets = dict(
+	minecraft=MinecraftSimpleVideoDataset,
         video_minecraft=MinecraftSimpleVideoDataset,
     )
 
