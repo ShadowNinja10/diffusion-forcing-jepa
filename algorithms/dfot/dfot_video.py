@@ -390,6 +390,27 @@ class DFoTVideo(BasePytorchAlgo):
                 sync_dist=True,
             )
 
+        from utils.distributed_utils import is_rank_zero
+        if is_rank_zero:
+            lines = [f"[Validation Metrics @ step {self.global_step}]"]
+            for task in self.tasks:
+                metric = self._metrics(task)
+                if metric is None:
+                    continue
+                for metric_type, module in metric.items():
+                    if hasattr(module, "is_empty") and module.is_empty:
+                        continue
+                    try:
+                        val = module.compute()
+                        if isinstance(val, dict):
+                            for k, v in val.items():
+                                lines.append(f"  {task}/{metric_type}/{k}: {v:.4f}")
+                        else:
+                            lines.append(f"  {task}/{metric_type}: {val:.4f}")
+                    except Exception:
+                        pass
+            rank_zero_print(cyan("\n".join(lines)))
+
     def test_step(self, *args: Any, **kwargs: Any) -> STEP_OUTPUT:
         return self.validation_step(*args, **kwargs, namespace="test")
 
@@ -430,26 +451,28 @@ class DFoTVideo(BasePytorchAlgo):
 
         gt_videos, recons = self.gather_data((gt_videos, recons))
 
-        if not (
+        if (
             is_rank_zero
             and self.logger
             and self.num_logged_videos < self.logging.max_num_videos
         ):
-            return
+            num_videos_to_log = min(
+                self.logging.max_num_videos - self.num_logged_videos,
+                gt_videos.shape[0],
+            )
+            log_video(
+                recons[:num_videos_to_log],
+                gt_videos[:num_videos_to_log],
+                step=self.global_step,
+                namespace="denoising_vis",
+                logger=self.logger.experiment,
+                indent=self.num_logged_videos,
+                captions="denoised | gt",
+            )
 
-        num_videos_to_log = min(
-            self.logging.max_num_videos - self.num_logged_videos,
-            gt_videos.shape[0],
-        )
-        log_video(
-            recons[:num_videos_to_log],
-            gt_videos[:num_videos_to_log],
-            step=self.global_step,
-            namespace="denoising_vis",
-            logger=self.logger.experiment,
-            indent=self.num_logged_videos,
-            captions="denoised | gt",
-        )
+        # Barrier so all ranks proceed to _sample_all_videos together
+        if self.trainer.world_size > 1:
+            torch.distributed.barrier()
 
     # ---------------------------------------------------------------------
     # Sampling
@@ -750,39 +773,41 @@ class DFoTVideo(BasePytorchAlgo):
         all_videos = self.gather_data(all_videos)
         batch_size, n_frames = all_videos["gt"].shape[:2]
 
-        if not (
+        if (
             is_rank_zero
             and self.logger
             and self.num_logged_videos < self.logging.max_num_videos
         ):
-            return
-
-        num_videos_to_log = min(
-            self.logging.max_num_videos - self.num_logged_videos,
-            batch_size,
-        )
-        cut_videos = lambda x: x[:num_videos_to_log]
-
-        for task in self.tasks:
-            log_video(
-                cut_videos(all_videos[task]),
-                cut_videos(all_videos["gt"]),
-                step=None if namespace == "test" else self.global_step,
-                namespace=f"{task}_vis",
-                logger=self.logger.experiment,
-                indent=self.num_logged_videos,
-                raw_dir=self.logging.raw_dir,
-                context_frames=(
-                    self.n_context_frames
-                    if task == "prediction"
-                    else torch.tensor(
-                        [0, n_frames - 1], device=self.device, dtype=torch.long
-                    )
-                ),
-                captions=f"{task} | gt",
+            num_videos_to_log = min(
+                self.logging.max_num_videos - self.num_logged_videos,
+                batch_size,
             )
+            cut_videos = lambda x: x[:num_videos_to_log].float()
 
-        self.num_logged_videos += batch_size
+            for task in self.tasks:
+                log_video(
+                    cut_videos(all_videos[task]),
+                    cut_videos(all_videos["gt"]),
+                    step=None if namespace == "test" else self.global_step,
+                    namespace=f"{task}_vis",
+                    logger=self.logger.experiment,
+                    indent=self.num_logged_videos,
+                    raw_dir=self.logging.raw_dir,
+                    context_frames=(
+                        self.n_context_frames
+                        if task == "prediction"
+                        else torch.tensor(
+                            [0, n_frames - 1], device=self.device, dtype=torch.long
+                        )
+                    ),
+                    captions=f"{task} | gt",
+                )
+
+            self.num_logged_videos += batch_size
+
+        # Barrier so all ranks proceed to next validation batch together
+        if self.trainer.world_size > 1:
+            torch.distributed.barrier()
 
     # ---------------------------------------------------------------------
     # Data Preprocessing Utils
@@ -1329,6 +1354,7 @@ class DFoTVideo(BasePytorchAlgo):
             xs_pred = xs_pred[:, :-padding]
             record = record[:, :, :-padding] if return_all else None
 
+
         return xs_pred, record
 
     # ---------------------------------------------------------------------
@@ -1388,7 +1414,7 @@ class DFoTVideo(BasePytorchAlgo):
     def _normalize_x(self, xs):
         shape = [1] * (xs.ndim - self.data_mean.ndim) + list(self.data_mean.shape)
         mean = self.data_mean.reshape(shape)
-        std = self.data_std.reshape(shape)
+        std = self.data_std.reshape(shape).clamp_min(1e-4)
         return (xs - mean) / std
 
     def _unnormalize_x(self, xs):

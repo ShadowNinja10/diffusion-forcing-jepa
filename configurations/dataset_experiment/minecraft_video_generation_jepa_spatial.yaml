@@ -1,31 +1,27 @@
 # @package _global_
-# Minecraft video generation with dual-encoder JEPA (BYOL-style)
+# Minecraft video generation with spatial JEPA predictor.
 #
-# USAGE:
-# ------
-# Finetune from pre-trained DFoT (recommended):
+# Recommended launch:
 #   python main.py \
-#     +name=jepa_dual_encoder \
+#     +name=jepa_spatial \
 #     experiment=video_generation \
 #     dataset=minecraft \
-#     algorithm=dfot_video_jepa \
-#     dataset_experiment=minecraft_video_generation_jepa \
+#     algorithm=dfot_video_jepa_spatial \
+#     dataset_experiment=minecraft_video_generation_jepa_spatial \
 #     load=pretrained:DFoT_MCRAFT.ckpt \
 #     algorithm.checkpoint.strict=false \
-#     @DiT/B @diffusion/continuous \
-#     experiment.training.batch_size=1 \
-#     experiment.find_unused_parameters=true \
-#     dataset.max_frames=8 dataset.context_length=4
+#     @DiT/B @diffusion/continuous
 #
-# The target VAE is loaded from algorithm.vae.pretrained_path and frozen.
-# The online encoder is a trainable copy of the target encoder.
-# JEPA components (predictor, action_encoder, online_encoder) are randomly
-# initialised when loading a pre-trained DFoT checkpoint (this is expected).
+# Notes:
+# - DiT/B config here uses non-factorized ("full") attention in diffusion backbone.
+# - Spatial JEPA predictor defaults to factorized attention for stability/memory.
+# - For Minecraft 256px latent maps (about 32x32), non-factorized JEPA can work
+#   at small batch sizes, but factorized is generally safer for memory.
 
 dataset:
   latent:
     enable: True
-    type: online  # JEPA requires online VAE processing
+    type: online
   subdataset_size: 1920000
   num_eval_videos: 768
 
@@ -59,7 +55,6 @@ algorithm:
     pretrained_path: pretrained:ImageVAE_MCRAFT.ckpt
     batch_size: 2
 
-  # JEPA settings (dual-encoder, BYOL-style)
   jepa:
     loss_weight: 1.0
     training_mode: teacher_forcing
@@ -67,10 +62,9 @@ algorithm:
     encoder_lr: 1e-5
     ema_decay: 0.999
     ema_update_every: 100
-    # Action encoder
+
     action_embed_dim: 256
     action_hidden_dim: 256
-    # ViT Predictor
     predictor_hidden_dim: 512
     predictor_depth: 4
     predictor_heads: 8
@@ -78,20 +72,23 @@ algorithm:
     predictor_mlp_ratio: 4.0
     predictor_dropout: 0.1
 
-    dfot_loss_weight: 1.0
+    # Spatial predictor options (new)
+    spatial_patch_size: 2
+    spatial_factorized_attention: true
 
+    dfot_loss_weight: 1.0
     normalize_jepa_latents: true
-    # Decoder reconstruction loss & visualization
+
     decoder_loss_weight: 4.0
     decoder_mse_weight: 1.0
     decoder_lpips_weight: 1.0
     decoder_lr: 1e-4
-    decoder_vis_every: 10000      # log reconstruction frames every N training steps
-    recon_regularizer: false  # set true to flow decoder loss through encoder
+    decoder_vis_every: 10000
+    recon_regularizer: false
     decoder_chunk_size: 4
     decoder_lpips_amp: true
     decoder_lpips_every: 50
-    decoder_vis_enabled: false 
+    decoder_vis_enabled: false
     decoder_loss_every: 50
 
   logging:
@@ -103,7 +100,7 @@ experiment:
     batch_size: 1
     max_epochs: 15
     optim:
-      gradient_clip_val: null  # manual optimization handles clipping in training_step
+      gradient_clip_val: null
   validation:
     batch_size: 16
     data:

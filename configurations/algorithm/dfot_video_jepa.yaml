@@ -35,10 +35,45 @@ jepa:
   predictor_mlp_ratio: 4.0
   predictor_dropout: 0.1
 
-  # Decoder reconstruction loss (collapse diagnostic)
-  # Set decoder_loss_weight > 0 to enable
-  decoder_loss_weight: 0.0     # overall weight in total_loss
+  # DFoT loss weight: scale the diffusion backbone loss.
+  # When finetuning from a pretrained DFoT backbone, consider reducing to
+  # 0.1-0.5 so the backbone adapts slowly to the evolving latent distribution.
+  # Monitor dfot_loss -- if it rises sharply the backbone isn't keeping up.
+  dfot_loss_weight: 1.0
+
+  # Decoder reconstruction loss & visualization
+  # Set decoder_loss_weight > 0 to enable (always saves vis regardless)
+  decoder_loss_weight: 4.0     # overall weight in total_loss
+  # When recon_regularizer=true the decoder loss (≈0.095) is ~4x smaller than
+  # JEPA loss (≈0.35-0.5). To meaningfully regularize the encoder, consider
+  # decoder_loss_weight: 3.0-5.0 so reconstruction gradients are comparable to
+  # JEPA gradients at the encoder.
   decoder_mse_weight: 1.0      # weight on pixel MSE term
   decoder_lpips_weight: 1.0    # weight on LPIPS perceptual term
   decoder_lr: 1e-4             # lr for online_decoder + online_post_quant_conv
-  decoder_vis_every: 2        # log reconstruction frames every N training steps
+  decoder_vis_every: 10000         # log reconstruction frames every N training steps
+  decoder_vis_enabled: false       # set false to disable decoder reconstruction logging
+  # Reconstruction regularizer: when true, decoder loss gradients flow through
+  # the encoder (acts as anti-collapse regularizer). When false, encoder is
+  # detached and decoder loss is purely diagnostic.
+  recon_regularizer: false
+  # Skip the decoder forward+backward on non-N steps when recon_regularizer
+  # is false.  The decoder is purely diagnostic in that case, so running it
+  # every step wastes compute.  Set to 1 to run every step (no skip).
+  decoder_loss_every: 50
+  # Frames per chunk in the decoder forward pass during training.
+  # Larger chunks reduce loop overhead and improve GPU utilization.
+  decoder_chunk_size: 4
+  # Run LPIPS VGG16 in float16 via autocast (roughly 2x faster on modern GPUs).
+  decoder_lpips_amp: true
+  # Compute LPIPS every K steps; MSE-only on other steps.
+  # Set to 1 to run LPIPS every step (default).
+  decoder_lpips_every: 50
+  # Normalize latents before JEPA predictor using the tracked data_mean/data_std.
+  # Keeps loss scale consistent regardless of raw latent magnitude.
+  normalize_jepa_latents: true
+
+  # Step timing: when true, log per-phase wall-clock times to find bottlenecks.
+  # Use log_step_timing_freq to log every N steps (default 10) to reduce overhead.
+  log_step_timing: false
+  log_step_timing_freq: 10

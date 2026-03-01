@@ -5,7 +5,7 @@ from datasets.video import (
     RealEstate10KMiniAdvancedVideoDataset,
     RealEstate10KOODAdvancedVideoDataset,
 )
-from algorithms.dfot import DFoTVideo, DFoTVideoPose, DFoTVideoJEPA
+from algorithms.dfot import DFoTVideo, DFoTVideoPose, DFoTVideoJEPA, DFoTVideoJEPASpatial
 from .base_exp import BaseLightningExperiment
 from .data_modules.utils import _data_module_cls
 
@@ -19,6 +19,7 @@ class VideoGenerationExperiment(BaseLightningExperiment):
         dfot_video=DFoTVideo,
         dfot_video_pose=DFoTVideoPose,
         dfot_video_jepa=DFoTVideoJEPA,
+        dfot_video_jepa_spatial=DFoTVideoJEPASpatial,
         sd_video=DFoTVideo,
         sd_video_3d=DFoTVideoPose,
     )

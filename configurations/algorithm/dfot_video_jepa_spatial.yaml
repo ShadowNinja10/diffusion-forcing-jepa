@@ -1,0 +1,25 @@
+# Spatial JEPA variant:
+# - Replaces flattened (C*H*W) JEPA state with latent patch tokens.
+# - Predictor runs temporal-causal + spatial attention (factorized by default).
+
+defaults:
+  - dfot_video_jepa
+
+jepa:
+  # Patchifying latent maps:
+  # latent size for Minecraft at 256px is typically 4x32x32.
+  # patch_size=2 -> 16x16 grid -> 256 tokens/frame.
+  spatial_patch_size: 2
+
+  # Attention mode in the spatial predictor:
+  # true  = factorized (temporal then spatial) [recommended]
+  # false = full causal over (time*patch) tokens (memory heavier)
+  spatial_factorized_attention: true
+
+  # Keep defaults close to non-spatial JEPA unless explicitly changed.
+  predictor_hidden_dim: 512
+  predictor_depth: 4
+  predictor_heads: 8
+  predictor_dim_head: 64
+  predictor_mlp_ratio: 4.0
+  predictor_dropout: 0.1
