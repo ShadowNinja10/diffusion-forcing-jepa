@@ -1157,25 +1157,57 @@ class DFoTVideoJEPA(DFoTVideo):
             if do_timing:
                 timings["phase2_backward_ms"] = (_tick() - t0) * 1000
 
-        # ========== Gradient clipping + optimizer step ====================
+        # ========== Per-group gradient clipping + optimizer step ==========
+        # Clip each param group independently so that large JEPA/decoder
+        # gradients don't squash the diffusion model's gradients to zero.
+        # We handle scaler.unscale_ / step / update manually to avoid the
+        # double-unscale error that Lightning's opt.step() would trigger.
         if is_train:
             if do_timing:
                 t0 = _tick()
             clip_val = self.trainer.gradient_clip_val
             if not clip_val:
                 clip_val = 1.0
-            self.clip_gradients(
-                opt,
-                gradient_clip_val=clip_val,
-                gradient_clip_algorithm=(
-                    self.trainer.gradient_clip_algorithm or "norm"
-                ),
-            )
+
+            raw_opt = opt.optimizer if hasattr(opt, "optimizer") else opt
+            scaler = getattr(self.trainer.precision_plugin, "scaler", None)
+
+            if scaler is not None:
+                scaler.unscale_(raw_opt)
+
+            # Log grad norms (replaces on_before_optimizer_step which
+            # is no longer triggered since we bypass Lightning's opt.step).
+            if (
+                self.cfg.logging.grad_norm_freq
+                and self.global_step % self.cfg.logging.grad_norm_freq == 0
+            ):
+                from lightning.pytorch.utilities import grad_norm as _grad_norm
+
+                for prefix, module in [
+                    ("diffusion_model", self.diffusion_model),
+                    ("predictor", self.predictor),
+                    ("online_encoder", self.online_encoder),
+                ]:
+                    norms = _grad_norm(module, norm_type=2)
+                    self.log_dict({f"grad_norm/{prefix}/{k}": v for k, v in norms.items()})
+
+            for group in raw_opt.param_groups:
+                params_with_grad = [p for p in group["params"] if p.grad is not None]
+                if params_with_grad:
+                    torch.nn.utils.clip_grad_norm_(params_with_grad, clip_val)
             if do_timing:
                 timings["optimizer_clip_grad_ms"] = (_tick() - t0) * 1000
+
             if do_timing:
                 t0 = _tick()
-            opt.step()
+            optim_progress = self.trainer.fit_loop.epoch_loop.manual_optimization.optim_step_progress
+            optim_progress.increment_ready()
+            if scaler is not None:
+                scaler.step(raw_opt)
+                scaler.update()
+            else:
+                raw_opt.step()
+            optim_progress.increment_completed()
             if do_timing:
                 timings["optimizer_step_ms"] = (_tick() - t0) * 1000
             if do_timing:

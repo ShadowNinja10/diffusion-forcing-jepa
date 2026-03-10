@@ -1,0 +1,48 @@
+# Decoupled Predictive-Generative Latent for DFoT
+#
+# Splits encoder latent into:
+#   zp (predictive): projected tokens shaped by JEPA + I-JEPA + SigREG
+#   zg (generative): near-identity (C=4) shaped by L1+LPIPS reconstruction
+#   FiLM fusion modulates zg with sg(zp) before decoding
+#
+# zp_channels=32 is chosen so that with spatial_patch_size=4, each
+# patch has 32*4*4=512 raw dims = predictor_hidden_dim.  No information
+# expansion or compression at the patch_embed boundary.
+
+defaults:
+  - dfot_video_ijepa_sigreg
+
+jepa:
+  # Mixed JEPA training: anneals between teacher-forcing and autoregressive.
+  # "teacher_forcing" | "autoregressive" | "mixed"
+  training_mode: mixed
+  # Steps before AR probability starts rising (pure teacher-forcing warmup)
+  ar_warmup_steps: 5000
+  # Max probability of using AR in mixed mode (< 1.0 ensures encoder always
+  # gets gradient signal from teacher-forcing)
+  ar_target_prob: 0.5
+  # DiT zp conditioning source: "predicted" (principled, no leakage) or
+  # "gt" (leaky ground-truth encoder zp, for ablation only)
+  dit_zp_source: predicted
+
+decoupled:
+  # Predictive subspace channels.
+  # 32 * patch_size^2 = 32*16 = 512 = predictor_hidden_dim
+  zp_channels: 32
+  # Generative channels must match VAE latent (C=4)
+  zg_channels: 4
+  # Spatially downsample zp (stride 2)
+  predictive_downsample: false
+
+  # Decorrelation loss
+  decorrelation_weight: 0.1
+  decorrelation_every: 1
+  decorrelation_num_proj: 64
+
+  # Learning rate for heads
+  heads_lr: 1e-4
+  # FiLM fusion weight
+  fusion_weight: 1.0
+
+  # Log decoupled diagnostics every N steps (0 to disable)
+  diagnostics_every: 100

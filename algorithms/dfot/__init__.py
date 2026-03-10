@@ -2,3 +2,9 @@ from .dfot_video import DFoTVideo
 from .dfot_video_pose import DFoTVideoPose
 from .dfot_video_jepa import DFoTVideoJEPA
 from .dfot_video_jepa_spatial import DFoTVideoJEPASpatial
+from .dfot_video_jepa_spatial_sigreg import DFoTVideoJEPASpatialSigREG
+from .dfot_video_ijepa_sigreg import DFoTVideoIJEPASigREG
+from .dfot_video_decoupled import DFoTVideoDecoupled
+from .jepa_training import JEPATraining
+from .jepa_spatial_training import JEPASpatialTraining
+from .jepa_spatial_small_p import JEPASpatialSmallP

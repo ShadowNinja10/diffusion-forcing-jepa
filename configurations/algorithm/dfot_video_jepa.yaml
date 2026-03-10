@@ -12,8 +12,15 @@ defaults:
 jepa:
   # Loss weight for JEPA prediction loss (combined with DFoT loss)
   loss_weight: 1.0
-  # Training mode: teacher_forcing or autoregressive
+  # Training mode: teacher_forcing, autoregressive, or mixed
   training_mode: teacher_forcing
+  # Mixed mode annealing: steps before AR probability starts rising
+  ar_warmup_steps: 5000
+  # Mixed mode annealing: max probability of using autoregressive training
+  ar_target_prob: 0.5
+  # DiT zp conditioning source (only used by decoupled variant):
+  # "predicted" = JEPA-predicted zp (principled), "gt" = ground-truth encoder zp
+  dit_zp_source: predicted
 
   # Learning rates
   lr: 1e-4       # for predictor + action encoder

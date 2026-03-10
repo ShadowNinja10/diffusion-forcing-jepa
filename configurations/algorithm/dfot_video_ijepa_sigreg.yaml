@@ -1,0 +1,21 @@
+# Joint temporal JEPA + spatial I-JEPA + SigREG
+#
+# Inherits spatial JEPA + SigREG and adds per-frame I-JEPA masking objective.
+# Predictor depth 2 + patch_size 4 (temporal), ijepa_patch_size 2 (spatial).
+
+defaults:
+  - dfot_video_jepa_spatial_sigreg
+
+jepa:
+  # I-JEPA spatial masking
+  ijepa_loss_weight: 1.0
+  ijepa_patch_size: 2
+  ijepa_hidden_dim: 256
+  ijepa_depth: 4
+  ijepa_heads: 8
+  ijepa_dropout: 0.1
+  ijepa_num_target_blocks: 4
+  ijepa_target_scale: [0.15, 0.2]
+  ijepa_target_aspect: [0.75, 1.5]
+  ijepa_min_context: 0.25
+  ijepa_vis_every: 500

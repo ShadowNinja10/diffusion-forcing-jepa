@@ -1,0 +1,30 @@
+# Standalone JEPA training (no DiT co-training)
+#
+# Inherits the full dfot_video_jepa config but disables video-generation
+# tasks and adjusts defaults for focused JEPA iteration.
+
+defaults:
+  - dfot_video_jepa
+
+# Disable video-generation tasks (no diffusion backbone)
+tasks:
+  prediction:
+    enabled: false
+  interpolation:
+    enabled: false
+
+# JEPA overrides for standalone training
+jepa:
+  # More frequent decoder updates (no DiT overhead to worry about)
+  decoder_loss_every: 1
+  # Enable visualisation by default
+  decoder_vis_enabled: true
+  decoder_vis_every: 500
+
+  # Diagnostics
+  drift_log_every: 100     # log encoder drift KL every N steps
+  collapse_log_every: 50   # log collapse metrics every N steps
+
+  # By default do NOT save model weights -- focus is on logging.
+  # Set to true if you want resumable checkpoints.
+  save_weights: false

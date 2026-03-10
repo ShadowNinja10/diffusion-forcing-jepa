@@ -1,0 +1,13 @@
+# DFoT finetuning with trainable online encoder/decoder and EMA target sync.
+# JEPA objective is disabled; decoder reconstruction acts as regularizer.
+
+defaults:
+  - dfot_video_jepa
+
+jepa:
+  # Disable JEPA predictor objective entirely.
+  loss_weight: 0.0
+
+  # Keep encoder+decoder trainable under the reconstruction objective.
+  recon_regularizer: true
+  decoder_loss_every: 1

@@ -1,0 +1,13 @@
+# Standalone Spatial JEPA training with smaller predictor
+#
+# Same as jepa_spatial_training but predictor uses reduced depth (default 2)
+# to shift predictive burden onto the encoder.
+
+defaults:
+  - jepa_spatial_training
+
+# latent inherited from jepa_spatial_training (enable: true, type: online)
+
+jepa:
+  # Small predictor: depth 2 instead of 4
+  predictor_depth_small: 2

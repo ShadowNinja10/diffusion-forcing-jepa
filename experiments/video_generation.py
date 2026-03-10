@@ -5,7 +5,18 @@ from datasets.video import (
     RealEstate10KMiniAdvancedVideoDataset,
     RealEstate10KOODAdvancedVideoDataset,
 )
-from algorithms.dfot import DFoTVideo, DFoTVideoPose, DFoTVideoJEPA, DFoTVideoJEPASpatial
+from algorithms.dfot import (
+    DFoTVideo,
+    DFoTVideoPose,
+    DFoTVideoJEPA,
+    DFoTVideoJEPASpatial,
+    DFoTVideoJEPASpatialSigREG,
+    DFoTVideoIJEPASigREG,
+    DFoTVideoDecoupled,
+    JEPATraining,
+    JEPASpatialTraining,
+    JEPASpatialSmallP,
+)
 from .base_exp import BaseLightningExperiment
 from .data_modules.utils import _data_module_cls
 
@@ -20,6 +31,13 @@ class VideoGenerationExperiment(BaseLightningExperiment):
         dfot_video_pose=DFoTVideoPose,
         dfot_video_jepa=DFoTVideoJEPA,
         dfot_video_jepa_spatial=DFoTVideoJEPASpatial,
+        dfot_video_jepa_spatial_sigreg=DFoTVideoJEPASpatialSigREG,
+        dfot_video_ijepa_sigreg=DFoTVideoIJEPASigREG,
+        dfot_video_decoupled=DFoTVideoDecoupled,
+        dfot_video_ema_finetune=DFoTVideoJEPA,
+        jepa_training=JEPATraining,
+        jepa_spatial_training=JEPASpatialTraining,
+        jepa_spatial_small_p=JEPASpatialSmallP,
         sd_video=DFoTVideo,
         sd_video_3d=DFoTVideoPose,
     )

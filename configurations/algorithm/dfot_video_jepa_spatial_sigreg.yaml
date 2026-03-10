@@ -1,0 +1,20 @@
+# Spatial JEPA + SigREG variant:
+# - Adds SigREG on encoder/predictor embeddings.
+# - Uses smaller predictor depth and larger patch size to force predictive signal into encoder latents.
+
+defaults:
+  - dfot_video_jepa_spatial
+
+jepa:
+  # Enforce stronger encoder-side predictive signal
+  predictor_depth: 2
+  spatial_patch_size: 4
+
+  # SigREG controls
+  prediction_loss_weight: 1.0
+  sigreg_loss_weight: 1.0
+  sigreg_num_slices: 1024
+  sigreg_proj_dim: 256
+  sigreg_graph_every: 200
+  sigreg_graph_num_videos: 1
+  sigreg_graph_max_points: 20000

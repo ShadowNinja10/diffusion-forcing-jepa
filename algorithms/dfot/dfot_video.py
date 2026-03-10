@@ -124,6 +124,10 @@ class DFoTVideo(BasePytorchAlgo):
             self.vae = None
 
         # 3. Metrics
+        self._build_metrics()
+
+    def _build_metrics(self):
+        """Initialize VideoMetric objects for each enabled task."""
         if len(self.tasks) == 0:
             return
         registry = SharedVideoMetricModelRegistry()
@@ -1319,24 +1323,14 @@ class DFoTVideo(BasePytorchAlgo):
                     composed_guidance_fn = guidance_fn
 
                 # update xs_pred by DDIM or DDPM sampling
-                xs_pred = self.diffusion_model.sample_step(
+                xs_pred = self._do_sample_step(
                     xs_pred,
                     from_noise_levels,
                     to_noise_levels,
-                    self._process_conditions(
-                        (
-                            repeat(
-                                conditions,
-                                "b ... -> (b nfe) ...",
-                                nfe=nfe,
-                            ).clone()
-                            if conditions is not None
-                            else None
-                        ),
-                        from_noise_levels,
-                    ),
+                    conditions,
                     conditions_mask,
-                    guidance_fn=composed_guidance_fn,
+                    composed_guidance_fn,
+                    nfe,
                 )
 
                 xs_pred = history_guidance_manager.compose(xs_pred)
@@ -1356,6 +1350,37 @@ class DFoTVideo(BasePytorchAlgo):
 
 
         return xs_pred, record
+
+    def _do_sample_step(
+        self,
+        xs_pred: torch.Tensor,
+        from_noise_levels: torch.Tensor,
+        to_noise_levels: torch.Tensor,
+        conditions: Optional[torch.Tensor],
+        conditions_mask: Optional[torch.Tensor],
+        guidance_fn: Optional[Callable],
+        nfe: int,
+    ) -> torch.Tensor:
+        """Wraps diffusion_model.sample_step so subclasses can inject extra kwargs."""
+        return self.diffusion_model.sample_step(
+            xs_pred,
+            from_noise_levels,
+            to_noise_levels,
+            self._process_conditions(
+                (
+                    repeat(
+                        conditions,
+                        "b ... -> (b nfe) ...",
+                        nfe=nfe,
+                    ).clone()
+                    if conditions is not None
+                    else None
+                ),
+                from_noise_levels,
+            ),
+            conditions_mask,
+            guidance_fn=guidance_fn,
+        )
 
     # ---------------------------------------------------------------------
     # Latent & Normalization Utils
